@@ -11,10 +11,23 @@ When a CSV file is uploaded to the `raw` S3 bucket, this Lambda function:
 - Publishes an SNS notification  
 
 ## Architecture
-flowchart LR
-    A[User uploads CSV<br/>S3: csv-cleaner-raw] -->|ObjectCreated| B[Lambda: lambda_function.py]
-    B -->|PutObject clean.csv| C[S3: csv-cleaner-clean]
-    B -->|PutObject quarantine.csv| D[S3: csv-cleaner-quarantine]
-    B -->|Publish| E[SNS: csv-cleaner-events]
-    E --> F[(Email)]
-
++--------------------+            S3 Event: ObjectCreated
+|  S3 (raw uploads)  |  ──────────────────────────────────►  +---------------------+
+|  csv-cleaner-raw   |                                       |  AWS Lambda         |
++---------▲----------+                                       |  lambda_function.py |
+          |                                                  +-----+-----------+---+
+          |                                                        |           |
+          |  PutObject (cleaned.csv)                               |           |
+          |                                                        |           |
+          |                                                        | Publish   |
+          |                                   PutObject (bad.csv)  | SNS       |
++---------+----------+                                       +-----v-----------v---+
+|  S3 (clean output) |                                       |  Amazon SNS         |
+| csv-cleaner-clean  |                                       |  csv-cleaner-events |
++--------------------+                                       +---------+-----------+
+                                                                       |
+                                                                       | Email
++-------------------------+                                            v
+|  S3 (quarantine/bad)   |
+| csv-cleaner-quarantine |
++-------------------------+
